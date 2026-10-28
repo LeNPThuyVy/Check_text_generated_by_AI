@@ -279,42 +279,53 @@ class LlamaCppPerplexityDetector(Detector):
     def detect(self, text: str) -> DetectionResult:
         if not self.llama_bin or not os.path.exists(self.llama_bin):
             return DetectionResult(None, "unavailable", "Không tìm thấy file thực thi llama-perplexity.exe")
-        if not os.path.exists(self.model_path):
+
+        model_file = Path(self.model_path)
+        if not model_file.is_absolute() and not model_file.exists():
+            candidate = Path(__file__).resolve().parent / self.model_path
+            if candidate.exists():
+                model_file = candidate
+        if not model_file.exists():
             return DetectionResult(None, "unavailable", f"Không tìm thấy model GGUF tại '{self.model_path}'")
 
         words = text.strip().split()
-        if len(words) < 25:
-            return DetectionResult(None, "unavailable", "Đoạn quá ngắn (<25 từ) để phân tích perplexity GGUF")
+        if len(words) < 20:
+            return DetectionResult(None, "unavailable", "Đoạn quá ngắn (<20 từ) để phân tích perplexity GGUF")
 
-        est_tokens = int(len(words) * 1.5)
-        if est_tokens < 32:
-            return DetectionResult(None, "unavailable", "Đoạn quá ngắn (<32 token ước lượng)")
-        elif est_tokens < 64:
-            ctx = 16
-        elif est_tokens < 128:
-            ctx = 32
+        # Lựa chọn danh sách context an toàn; llama-perplexity yêu cầu số token >= 2 * ctx.
+        # Fallback thử từ context cao xuống context thấp hơn nếu đoạn văn không đủ token.
+        if len(words) >= 90:
+            ctx_candidates = [64, 32, 16]
+        elif len(words) >= 45:
+            ctx_candidates = [32, 16]
         else:
-            ctx = 64
+            ctx_candidates = [16]
 
         with tempfile.NamedTemporaryFile("w", encoding="utf-8", delete=False, suffix=".txt") as tf:
             tf.write(text)
             temp_name = tf.name
 
         try:
-            cmd = [self.llama_bin, "-m", self.model_path, "-f", temp_name, "-c", str(ctx), "--ppl-stride", "0"]
-            res = subprocess.run(cmd, capture_output=True, text=True, encoding="utf-8", errors="ignore")
-            combined_out = res.stdout + "\n" + res.stderr
-            m = re.search(r"Final estimate:\s*PPL\s*=\s*([0-9.]+)", combined_out)
-            if not m:
-                m = re.search(r"PPL\s*=\s*([0-9.]+)", combined_out)
+            ppl = None
+            used_ctx = ctx_candidates[-1]
+            for ctx in ctx_candidates:
+                cmd = [self.llama_bin, "-m", str(model_file), "-f", temp_name, "-c", str(ctx), "--ppl-stride", "0"]
+                res = subprocess.run(cmd, capture_output=True, text=True, encoding="utf-8", errors="ignore")
+                combined_out = res.stdout + "\n" + res.stderr
+                m = re.search(r"Final estimate:\s*PPL\s*=\s*([0-9.]+)", combined_out)
+                if not m:
+                    m = re.search(r"PPL\s*=\s*([0-9.]+)", combined_out)
+                if m:
+                    ppl = float(m.group(1))
+                    used_ctx = ctx
+                    break
 
-            if not m:
+            if ppl is None:
                 return DetectionResult(None, "unavailable", "Không trích xuất được PPL từ llama-perplexity")
 
-            ppl = float(m.group(1))
             score = max(0.0, min(1.0, (self.high - ppl) / max(0.1, self.high - self.low)))
             label = "likely_ai" if score > 0.65 else "likely_human" if score < 0.35 else "uncertain"
-            notes = [f"perplexity_3b={ppl:.1f}", f"ctx={ctx}", f"model={os.path.basename(self.model_path)}"]
+            notes = [f"perplexity_3b={ppl:.1f}", f"ctx={used_ctx}", f"model={model_file.name}"]
             return DetectionResult(round(score, 3), label, "; ".join(notes))
         except Exception as e:
             return DetectionResult(None, "unavailable", f"Lỗi chạy llama-perplexity: {e}")

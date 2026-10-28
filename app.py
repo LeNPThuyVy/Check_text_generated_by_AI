@@ -71,7 +71,9 @@ def _render_sentences_with_spans(p_res: ParagraphResult) -> str:
     for s in p_res.sentences:
         s_esc = html.escape(s.text)
         sc_str = f"{s.score:.3f}" if s.score is not None else "-"
-        tip = html.escape(f"Câu #{s.index + 1} ({s.word_count} từ) • Điểm ngữ cảnh: {sc_str} ({s.label}) — Chỉ gợi ý trực quan")
+        status_icon = "🤖 Câu AI" if s.label == "likely_ai" else "⚠️ Nghi vấn" if s.label == "uncertain" else "👤 Tự nhiên"
+        note_str = f" • {s.note}" if s.note else ""
+        tip = html.escape(f"Câu #{s.index + 1} ({s.word_count} từ) • {status_icon} (Điểm: {sc_str}){note_str}")
         if s.label == "likely_ai":
             cls = "sent-ai"
         elif s.label == "uncertain":
@@ -196,21 +198,34 @@ def render_html_highlighted_doc(doc_res: DocumentHierarchyResult) -> str:
             word-break: break-word;
         }
         .sent-ai {
-            background-color: rgba(239, 68, 68, 0.18);
-            border-bottom: 2px solid #ef4444;
+            background-color: rgba(239, 68, 68, 0.32);
+            border-bottom: 2.5px solid #dc2626;
             border-radius: 3px;
-            padding: 0 2px;
+            padding: 1px 3px;
+            font-weight: 500;
             cursor: help;
+            transition: background-color 0.15s ease;
+        }
+        .sent-ai:hover {
+            background-color: rgba(239, 68, 68, 0.52);
+        }
+        .dark .sent-ai {
+            background-color: rgba(239, 68, 68, 0.45);
+            border-bottom-color: #f87171;
         }
         .sent-uncertain {
-            background-color: rgba(234, 179, 8, 0.18);
-            border-bottom: 1px dashed #ca8a04;
+            background-color: rgba(234, 179, 8, 0.22);
+            border-bottom: 2px dashed #ca8a04;
             border-radius: 3px;
-            padding: 0 2px;
+            padding: 1px 3px;
             cursor: help;
         }
+        .dark .sent-uncertain {
+            background-color: rgba(234, 179, 8, 0.35);
+            border-bottom-color: #facc15;
+        }
         .sent-human {
-            border-bottom: 1px dotted rgba(34, 197, 94, 0.45);
+            border-bottom: 1.5px dotted rgba(34, 197, 94, 0.65);
             cursor: help;
         }
         .para-note {
@@ -221,7 +236,15 @@ def render_html_highlighted_doc(doc_res: DocumentHierarchyResult) -> str:
         }
     </style>
     """
-    html_parts = [style, '<div class="doc-container">']
+    legend = """
+    <div style="margin-bottom: 12px; padding: 10px 14px; background: #f8fafc; border: 1px solid #cbd5e1; border-radius: 8px; font-size: 0.85rem; display: flex; gap: 16px; align-items: center; flex-wrap: wrap;">
+        <span style="font-weight: 700; color: #334155;">💡 Chú thích highlight câu:</span>
+        <span style="color: #b91c1c;"><span style="display:inline-block; width:12px; height:12px; background:#ef4444; border-radius:2px; vertical-align:middle; margin-right:5px;"></span><b>Đỏ đậm:</b> Khả năng cao AI (Hover để xem điểm)</span>
+        <span style="color: #b45309;"><span style="display:inline-block; width:12px; height:12px; background:#eab308; border-radius:2px; vertical-align:middle; margin-right:5px;"></span><b>Vàng:</b> Nghi vấn / Hỗn hợp</span>
+        <span style="color: #15803d;"><span style="display:inline-block; width:12px; height:12px; background:#22c55e; border-radius:2px; vertical-align:middle; margin-right:5px;"></span><b>Xanh:</b> Tự nhiên (Người viết)</span>
+    </div>
+    """
+    html_parts = [style, legend, '<div class="doc-container">']
     sec_by_header = {s.header_para_index: s for s in doc_res.sections if s.header_para_index is not None}
 
     for p_res in doc_res.paragraphs:

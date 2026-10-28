@@ -135,12 +135,19 @@ def _label_from_score(score: float | None, ai_thresh: float = 0.56, human_thresh
     return "uncertain"
 
 
-def score_sentences(paragraph: str, detectors: list[Detector]) -> list[SentenceResult]:
-    """Chấm từng câu trong đoạn bằng cửa sổ ngữ cảnh lân cận (±1 câu liền kề).
+def score_sentences(
+    paragraph: str,
+    detectors: list[Detector],
+    para_context_score: float | None = None,
+    para_label: str | None = None,
+) -> list[SentenceResult]:
+    """Chấm từng câu trong đoạn bằng cửa sổ ngữ cảnh lân cận (±1 câu liền kề)
+    kết hợp lan truyền ngữ cảnh từ điểm đoạn của mô hình (nếu có).
 
     Vì các tín hiệu văn phong (burstiness, mật độ từ nối) không có ý nghĩa trên 1 câu ngắn
     đơn lẻ, mỗi câu dưới 35 từ được ghép với câu liền trước/sau để tạo cửa sổ ngữ cảnh >=25 từ.
-    Kết quả cấp câu chỉ dùng để tô màu gợi ý trực quan.
+    Khi đoạn văn được Model chấm điểm AI cao, điểm của đoạn được truyền vào để nhận diện chính xác
+    các câu văn mang phong cách AI.
     """
     sents = split_sentences(paragraph)
     if not sents:
@@ -161,19 +168,39 @@ def score_sentences(paragraph: str, detectors: list[Detector]) -> list[SentenceR
         eval_text = " ".join(ctx_parts)
         det_map: dict[str, DetectionResult] = {}
         for d in detectors:
-            # Ở cấp câu, ưu tiên các detector nhanh (như stylometry) hoặc bộ detector đã truyền vào
             det_map[d.name] = d.detect(eval_text)
 
         ens = combine_detections(det_map)
-        note_suffix = "ngữ cảnh ±1 câu (chỉ gợi ý trực quan)" if used_context else "câu độc lập (chỉ gợi ý trực quan)"
-        note = f"{ens.note}; {note_suffix}" if ens.note else note_suffix
+
+        final_sent_score = ens.score
+        final_sent_label = ens.label
+        note_parts: list[str] = []
+        if ens.note:
+            note_parts.append(ens.note)
+
+        # Lan truyền ngữ cảnh từ điểm mô hình / ensemble cấp đoạn nếu có
+        if ens.score is not None and para_context_score is not None:
+            # Kết hợp 60% điểm đặc trưng câu + 40% điểm mô hình cấp đoạn
+            combined_score = round(0.6 * ens.score + 0.4 * para_context_score, 3)
+            final_sent_score = combined_score
+            final_sent_label = _label_from_score(combined_score, ai_thresh=0.52, human_thresh=0.35)
+            note_parts.append(f"kết hợp model đoạn={para_context_score:.3f}")
+        elif para_context_score is not None and ens.score is None:
+            final_sent_score = round(para_context_score, 3)
+            final_sent_label = _label_from_score(final_sent_score, ai_thresh=0.52, human_thresh=0.35)
+            note_parts.append(f"theo điểm model đoạn={para_context_score:.3f}")
+
+        note_suffix = "ngữ cảnh ±1 câu" if used_context else "câu độc lập"
+        note_parts.append(note_suffix)
+        note = "; ".join(note_parts)
+
         results.append(
             SentenceResult(
                 index=i,
                 text=s_text,
                 word_count=w_count,
-                score=ens.score,
-                label=ens.label,
+                score=final_sent_score,
+                label=final_sent_label,
                 note=note,
             )
         )
@@ -288,8 +315,12 @@ def analyze_document_hierarchy(
     raw_sections = split_sections(raw_paras)
     win = max(1, int(window_size))
 
-    # Chấm cấp câu bằng các detector nhẹ (Stylometry) để không làm chậm gấp nhiều lần khi bật Perplexity
-    sentence_detectors = [d for d in detectors if d.name == "stylometry"] or detectors[:1]
+    # Chấm cấp câu: Ưu tiên Stylometry và Perplexity chạy in-memory (Transformers).
+    # Không đưa GGUF vào sentence_detectors vì llama-perplexity.exe rất chậm;
+    # Thay vào đó, điểm GGUF của đoạn sẽ được tự động lan truyền vào từng câu qua para_context_score.
+    sentence_detectors = [d for d in detectors if d.name in ("stylometry", "perplexity")]
+    if not sentence_detectors:
+        sentence_detectors = detectors[:1]
 
     all_para_results: list[ParagraphResult] = []
     section_results: list[SectionResult] = []
@@ -338,7 +369,17 @@ def analyze_document_hierarchy(
             stylo_note = det_objs.get("stylometry", own_ens).note
             low_conf = ("confidence=low" in stylo_note) or (w_count < 65)
 
-            sent_results = score_sentences(p_text, sentence_detectors) if w_count >= 25 else []
+            # Chấm điểm từng câu kèm lan truyền ngữ cảnh từ điểm đoạn của mô hình
+            sent_results = (
+                score_sentences(
+                    p_text,
+                    sentence_detectors,
+                    para_context_score=own_ens.score,
+                    para_label=own_ens.label,
+                )
+                if w_count >= 25
+                else []
+            )
             sent_mean, para_score, para_label, para_note = aggregate_paragraph(own_ens, sent_results)
 
             p_res = ParagraphResult(
