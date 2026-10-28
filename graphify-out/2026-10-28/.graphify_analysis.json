@@ -1,0 +1,237 @@
+{
+  "communities": {
+    "0": [
+      "detectors_combine_detections",
+      "detectors_rationale_398",
+      "hierarchy",
+      "hierarchy_aggregate_paragraph",
+      "hierarchy_analyze_document_hierarchy",
+      "hierarchy_documenthierarchyresult",
+      "hierarchy_is_section_header",
+      "hierarchy_label_from_score",
+      "hierarchy_paragraphresult",
+      "hierarchy_rationale_1",
+      "hierarchy_rationale_139",
+      "hierarchy_rationale_187",
+      "hierarchy_rationale_214",
+      "hierarchy_rationale_286",
+      "hierarchy_rationale_85",
+      "hierarchy_rationale_98",
+      "hierarchy_score_sentences",
+      "hierarchy_sectionresult",
+      "hierarchy_sentenceresult",
+      "hierarchy_split_sections",
+      "hierarchy_verdict_for_collection"
+    ],
+    "1": [
+      "app",
+      "app_get_perplexity_detector",
+      "app_rationale_1",
+      "app_rationale_283",
+      "app_rationale_467",
+      "app_rationale_56",
+      "app_rationale_78",
+      "app_render_html_highlighted_doc",
+      "app_render_sentences_with_spans",
+      "app_run_provenance_analysis",
+      "app_run_stylometry_analysis",
+      "cli_rationale_25",
+      "cli_read_document",
+      "gradio",
+      "html",
+      "os",
+      "pathlib"
+    ],
+    "2": [
+      "argparse",
+      "cli",
+      "cli_main",
+      "cli_rationale_1",
+      "cli_render_markdown_report",
+      "collections",
+      "detectors_detect_language",
+      "detectors_rationale_151",
+      "json",
+      "provenance_split_paragraphs",
+      "sys",
+      "xml_etree_elementtree",
+      "zipfile"
+    ],
+    "3": [
+      "dataclasses",
+      "difflib",
+      "provenance",
+      "provenance_categorize",
+      "provenance_compute_provenance",
+      "provenance_normalize_text",
+      "provenance_paragraphprovenance",
+      "provenance_rationale_1",
+      "provenance_rationale_10",
+      "provenance_rationale_42",
+      "provenance_sentence_coverage",
+      "provenance_split_sentences",
+      "re"
+    ],
+    "4": [
+      "abc",
+      "cli_build_detectors",
+      "detectors_anthropicwatermarkdetector",
+      "detectors_detector",
+      "detectors_rationale_375"
+    ],
+    "5": [
+      "detectors_perplexitydetector",
+      "detectors_perplexitydetector_detect",
+      "detectors_perplexitydetector_init",
+      "detectors_perplexitydetector_is_english_only_model",
+      "detectors_rationale_179"
+    ],
+    "6": [
+      "detectors",
+      "detectors_rationale_1",
+      "math",
+      "statistics"
+    ],
+    "7": [
+      "detectors_rationale_243",
+      "detectors_stylometrydetector",
+      "detectors_stylometrydetector_detect",
+      "detectors_stylometrydetector_split_sentences_and_clauses"
+    ],
+    "8": [
+      "detectors_anthropicwatermarkdetector_detect",
+      "detectors_detectionresult",
+      "detectors_detector_detect"
+    ],
+    "9": [
+      "detectors_dummydetector",
+      "detectors_dummydetector_detect",
+      "detectors_rationale_389"
+    ]
+  },
+  "cohesion": {
+    "0": 0.1619047619047619,
+    "1": 0.15441176470588236,
+    "2": 0.19230769230769232,
+    "3": 0.24358974358974358,
+    "4": 0.5,
+    "5": 0.5,
+    "6": 0.5,
+    "7": 0.6666666666666666,
+    "8": 0.6666666666666666,
+    "9": 0.6666666666666666
+  },
+  "gods": [
+    {
+      "id": "hierarchy_analyze_document_hierarchy",
+      "label": "analyze_document_hierarchy()",
+      "degree": 16
+    },
+    {
+      "id": "detectors_detectionresult",
+      "label": "DetectionResult",
+      "degree": 15
+    },
+    {
+      "id": "detectors_detector",
+      "label": "Detector",
+      "degree": 12
+    },
+    {
+      "id": "provenance_compute_provenance",
+      "label": "compute_provenance()",
+      "degree": 11
+    },
+    {
+      "id": "detectors_perplexitydetector",
+      "label": "PerplexityDetector",
+      "degree": 10
+    },
+    {
+      "id": "cli_main",
+      "label": "main()",
+      "degree": 9
+    },
+    {
+      "id": "detectors_detect_language",
+      "label": "detect_language()",
+      "degree": 9
+    },
+    {
+      "id": "detectors_combine_detections",
+      "label": "combine_detections()",
+      "degree": 9
+    },
+    {
+      "id": "detectors_stylometrydetector",
+      "label": "StylometryDetector",
+      "degree": 8
+    },
+    {
+      "id": "hierarchy_score_sentences",
+      "label": "score_sentences()",
+      "degree": 8
+    }
+  ],
+  "surprises": [
+    {
+      "source": "_render_sentences_with_spans()",
+      "target": "ParagraphResult",
+      "source_files": [
+        "app.py",
+        "hierarchy.py"
+      ],
+      "confidence": "INFERRED",
+      "relation": "uses",
+      "why": "inferred connection - not explicitly stated in source; bridges separate communities"
+    },
+    {
+      "source": "render_html_highlighted_doc()",
+      "target": "DocumentHierarchyResult",
+      "source_files": [
+        "app.py",
+        "hierarchy.py"
+      ],
+      "confidence": "INFERRED",
+      "relation": "uses",
+      "why": "inferred connection - not explicitly stated in source; bridges separate communities"
+    },
+    {
+      "source": "main()",
+      "target": "DetectionResult",
+      "source_files": [
+        "cli.py",
+        "detectors.py"
+      ],
+      "confidence": "INFERRED",
+      "relation": "uses",
+      "why": "inferred connection - not explicitly stated in source; bridges separate communities"
+    },
+    {
+      "source": "aggregate_paragraph()",
+      "target": "DetectionResult",
+      "source_files": [
+        "hierarchy.py",
+        "detectors.py"
+      ],
+      "confidence": "INFERRED",
+      "relation": "uses",
+      "why": "inferred connection - not explicitly stated in source; bridges separate communities"
+    },
+    {
+      "source": "ParagraphResult",
+      "target": "DetectionResult",
+      "source_files": [
+        "hierarchy.py",
+        "detectors.py"
+      ],
+      "confidence": "INFERRED",
+      "relation": "uses",
+      "why": "inferred connection - not explicitly stated in source; bridges separate communities"
+    }
+  ],
+  "tokens": {
+    "input": 0,
+    "output": 0
+  }
+}

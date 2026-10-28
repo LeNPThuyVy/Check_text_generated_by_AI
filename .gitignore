@@ -1,0 +1,9 @@
+Architecture_system.md
+task/
+report.json
+report.md
+__pycache__/
+*.pyc
+*.gguf
+graphify_out/
+Test AI.docx
